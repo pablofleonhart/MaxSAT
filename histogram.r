@@ -1,0 +1,5 @@
+d<-read.table( "x.dat" )
+pdf( "x.pdf" )
+hist( d$V1 )
+dev.off()
+q()
