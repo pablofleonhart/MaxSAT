@@ -1,6 +1,8 @@
 from random import *
+import copy
 import os
 import sys
+import time
 
 class GreedyA:
 	m = 0	# variables
@@ -9,13 +11,17 @@ class GreedyA:
 	dicClauses = {}
 	attempt = []
 	unsatisfiedClauses = set()
+	improves = []
+	alpha = 0.2
+	k = 0
+	name = ''
 
 	def __init__( self, filename ):
 		file = open( filename, "r" )
 		finish = False
 		read = False
-		
-		clause = []
+		clause = []		
+		self.name = ( filename.split( '.' )[0] ).split( '/' )[-1]
 
 		while not finish:
 		    line = file.readline()
@@ -52,26 +58,35 @@ class GreedyA:
 					self.dicClauses[literal] = set()
 				self.dicClauses[literal].add( tuple( clause ) )
 
-		print self.dicClauses
+		#print self.dicClauses
 
-	def invValue( self, v ):
-		if v == 0:
+	def invertValue( self, value ):
+		if value == 0:
 			return 1
 		else:
 			return 0
 
-	def isSatisfiedClause( self, clause ):
+	def isSatisfiedClause( self, clause ):		
+		hasValidValue = False
 		clauseValue = 0
 		for variable in clause:
 			ab = abs( int( variable ) )
 			if int( variable ) < 0:
-				value = self.invValue( self.attempt[ab] )
+				value = self.invertValue( self.attempt[ab] )
 			else:
-				value = self.attempt[ab]
+				if self.attempt[ab] < 0:
+					value = 0
+				else:
+					value = self.attempt[ab]
 
 			clauseValue += value
+			#print variable, value
 
-		return clauseValue > 0
+			if self.attempt[ab] >= 0:
+				hasValidValue = True
+
+		#print clause, self.attempt, clauseValue > 0
+		return clauseValue > 0 and hasValidValue
 
 	def satisfies( self, variable ):
 		if variable:
@@ -91,26 +106,161 @@ class GreedyA:
 
 		return len( self.unsatisfiedClauses ) == 0
 
-	def run( self ):
-		res = []
+	def countSatisfiedClauses( self, clauses ):
+		sat = 0
+		for clause in clauses:
+			if self.isSatisfiedClause( clause ):
+				sat += 1
+
+		return sat
+
+	def countUnsatisfiedClauses( self, clauses ):
+		count = 0
+		for clause in clauses:
+			if not self.isSatisfiedClause( clause ):
+				count += 1
+
+		return count
+
+	def countClauses( self, clauses ):
+		sat = 0
+		unsat = 0
+		for clause in clauses:
+			if self.isSatisfiedClause( clause ):
+				sat += 1
+			else:
+				unsat += 1
+
+		return sat, unsat
+
+	def rankingPairs( self, pair ):
+		#print 'pair', pair
+		variable = pair[0]
+		value = pair[1]
+		clausesToEvaluate = self.dicClauses[variable]
+
+		unsBefore = self.countUnsatisfiedClauses( clausesToEvaluate )
+		#print 'u', unsBefore
+		#print self.countClauses( clausesToEvaluate )
+		originalValue = self.attempt[variable]
+		self.attempt[variable] = value
+		unsAfter = self.countUnsatisfiedClauses( clausesToEvaluate )
+		#print 'u2', unsAfter
+		#brokenClauses = self.countClauses( clausesToEvaluate )
+		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
+		#brokenClausesFlipped = self.countUnsatisfiedClauses( clausesToEvaluate )
+		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
+		self.attempt[variable] = originalValue
+		#broken = brokenClausesFlipped - brokenClauses
+		#print pair, broken, brokenClausesFlipped, brokenClauses
+		#print brokenClauses
+		self.improves.append( ( variable + ( self.n * value ), unsBefore - unsAfter ) )
+
+	def getVariable( self, remainingVars ):
+		self.improves = []
+		for i in remainingVars:
+			for j in xrange( 0, 2 ):
+				self.rankingPairs( ( i, j ) )
+		
+		self.improves = self.sort( self.improves )
+		#print self.improves
+
+		#select variable according with alpha parameter
+		#print self.n * self.alpha
+		limiar = int( round( self.n * self.alpha * self.k ) )
+		if limiar == 0:
+			limiar = 1
+		#print choice( self.improves[:limiar] )
+		variable = choice( self.improves[:limiar] )[0]
+		value = 0
+
+		if variable > self.n:
+			variable -= self.n
+			value = 1
+
+		#print variable, value
+		return variable, value
+
+	def run( self, k ):
+		self.k = k
+		seed( time.time() )
+		self.unsatisfiedClauses = copy.deepcopy( self.clauses )
+		self.attempt = [-1 for x in xrange( self.n + 1 )]
 		var = []
 		for i in xrange( 1, self.n + 1 ):
 			var.append( i )
 
 		while len( var ) > 0:
-
-			for i in var:
+			#print '################################################################'
+			'''for i in var:
 				for j in xrange( 0, 2 ):
-					f = i+j
+					self.rankingPairs( ( i, j ) )
 
-			x = choice( var )
-			v = randint( 0, 1 )
+			print self.improves
+			self.improves = self.sort( self.improves )
+			variable = self.improves[0][0]
+			value = 0
+
+			if variable > self.n:
+				variable -= self.n
+				value = 1'''
+
+			pair = self.getVariable( var )
+			#print pair
+			x = pair[0]
+			v = pair[1]
+			#x = choice( var )
+			#v = randint( 0, 1 )
 			var.remove( x )
+			self.attempt[x] = v
+			#print 'v', self.countSatisfiedClauses( self.clauses )
+			#print 'remove', self.improves[0][0]
+			#self.rankingPairs( ( x, v ) )
 			#print x, v
 		#print var
+		#print self.attempt
+		res = self.countSatisfiedClauses( self.clauses )
+		file = open( "results/" + self.name + "_" + str( self.alpha * k ) + ".dat", "a" )
+		file.write( str( res ) + "\n" )
+		print 'v', res
+		file.close()
+
+	def sort( self, array ):
+		less = []
+		equal = []
+		greater = []
+
+		if len( array ) > 1:
+			pivot = array[0][1]
+			for x, y in array:
+				if y < pivot:
+					less.append( ( x, y ) )
+				if y == pivot:
+					equal.append( ( x, y ) )
+				if y > pivot:
+					greater.append( ( x, y ) )
+			return self.sort( greater ) + equal + self.sort( less )
+		else:
+			return array
 
 param = sys.argv[1:]
 filename = param[0]
+k = [0, 1, 2, 3, 4, 5]
+#k = [1]
 
 ga = GreedyA( filename )
-ga.run()
+name = ( filename.split( '.' )[0] ).split( '/' )[-1]
+
+for v in k:
+	for i in xrange( 1000 ):
+		ga.run( v )
+
+	file = open( "histogram.r", "w" )
+	file.write( "d<-read.table( 'results/" + name + "_" + str( 0.2 * v ) + ".dat' )\n" )
+	file.write( "png( 'results/" + name + "_" + str( 0.2 * v ) + ".png' )\n" )
+	file.write( "hist( d$V1, main = 'alpha = " + str( 0.2 * v ) + "', xlab = 'Satisfied clauses' )\n" )
+	file.write( "dev.off()\n" )
+	file.write( "q()" )
+	file.close()
+
+	os.system( "Rscript histogram.r" )

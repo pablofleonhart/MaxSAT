@@ -1,5 +1,5 @@
-d<-read.table( "x.dat" )
-pdf( "x.pdf" )
-hist( d$V1 )
+d<-read.table( 'results/flat50-1_1.0.dat' )
+png( 'results/flat50-1_1.0.png' )
+hist( d$V1, main = 'alpha = 1.0', xlab = 'Satisfied clauses' )
 dev.off()
 q()
