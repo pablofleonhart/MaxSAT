@@ -181,6 +181,34 @@ class GreedyA:
 		#print variable, value
 		return variable, value
 
+	def countGains( self, variable ):
+		#print self.dicClauses[variable]
+
+		clausesToEvaluate = self.dicClauses[variable]
+		brokenClauses = self.countUnsatisfiedClauses( clausesToEvaluate )
+		self.attempt[variable] = self.invertValue( self.attempt[variable] )
+		brokenClausesFlipped = self.countUnsatisfiedClauses( clausesToEvaluate )
+		self.attempt[variable] = self.invertValue( self.attempt[variable] )
+		gain = brokenClauses - brokenClausesFlipped
+
+		#print gain
+		return gain
+
+	def localSearch( self ):
+		gain = 1		
+		while gain > 0:
+			gains = []
+			gain -= 1
+			for x in xrange( 1, self.n + 1 ):
+				gains.append( ( x, self.countGains( x ) ) )
+
+			gains = self.sort( gains )
+			gain = gains[0][1]
+			print self.attempt
+			self.attempt[gains[0][0]] = self.invertValue( self.attempt[gains[0][0]] )
+			print 'g', gains, gain
+			print self.attempt
+
 	def run( self, k ):
 		self.k = k
 		seed( time.time() )
@@ -225,6 +253,7 @@ class GreedyA:
 		print 'v', res
 		file.close()'''
 		#print 'v', res
+		self.localSearch()
 		return res
 
 	def sort( self, array ):
@@ -258,7 +287,7 @@ class GreedyA:
 
 param = sys.argv[1:]
 filename = param[0]
-k = [1, 2, 3, 4, 5]
+k = [5]
 solutions = 1000
 
 ga = GreedyA( filename )
@@ -271,6 +300,7 @@ for v in k:
 
 	for i in xrange( solutions ):
 		result = ga.run( v )
+		#ga.localSearch()
 		contentResults += str( result ) + '\n'
 		total += result
 

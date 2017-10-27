@@ -1,5 +1,5 @@
-d<-read.table( 'results/flat50-1_1.0.dat' )
-png( 'results/flat50-1_1.0.png' )
+d<-read.table( 'results/test_1.0.dat' )
+png( 'results/test_1.0.png' )
 hist( d$V1, main = 'alpha = 1.0', xlab = 'Satisfied clauses' )
 dev.off()
 q()
