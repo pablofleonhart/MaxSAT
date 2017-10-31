@@ -206,10 +206,10 @@ class Grasp:
 	def walkSatLocalSearch( self ):
 		iterations = 0
 		self.satisfies( None )
-		print self.unsatisfiedClauses
+		#print self.unsatisfiedClauses
 		start = time.time()
 
-		while self.unsatisfiedClauses and time.time() - start < 1:
+		while self.unsatisfiedClauses and time.time() - start < 10:
 			bestVariable = None
 			b = len( self.clauses ) + 1
 
@@ -229,9 +229,9 @@ class Grasp:
 						b = broken
 						bestVariable = variable
 
-					print broken, variable
+					#print broken, variable
 
-			print b, bestVariable
+			#print b, bestVariable
 
 			if b > 0 and random() < self.prob:
 				randomVar = randint( 1, self.n )
@@ -242,11 +242,13 @@ class Grasp:
 				variable = bestVariable
 
 			self.satisfies( variable )
-			print 'after', self.unsatisfiedClauses, self.attempt
+			#print 'after', self.unsatisfiedClauses, self.attempt
+			iterations += 1
 
 		return iterations
 
 	def run( self, k, alg ):
+		iterations = 0
 		self.k = k
 		seed( time.time() )
 		self.unsatisfiedClauses = copy.deepcopy( self.clauses )
@@ -261,11 +263,12 @@ class Grasp:
 			v = pair[1]
 			var.remove( x )
 			self.attempt[x] = v
+			iterations += 1
 
 		if alg == 'gsat':
 			iterations = self.localSearch()
 		elif alg == 'walksat':
-			iterations = self.walkSatLocalSearch()
+			iterations += self.walkSatLocalSearch()
 
 		return self.countSatisfiedClauses( self.clauses ), iterations
 
@@ -301,17 +304,17 @@ class Grasp:
 param = sys.argv[1:]
 filename = param[0]
 alg = param[1]
-k = [0, 1, 2]
-solutions = 1000
+k = [0, 1, 2, 3, 4, 5]
+solutions = 10
 
 ga = Grasp( filename )
 name = ( filename.split( '.' )[0] ).split( '/' )[-1]
 f = filename.split( "/" )[1]
 nfile = f.replace( ".cnf", '' )
 pattern = "{:9s}{:14s}{:3s}{:7s}{:10s}"
-file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+'''file = open( "resultsGrasp" + nfile + ".txt", 'a' )
 file.write( pattern.format( "alg", "instance", "k", "rep", 'v' ) + '\n' )
-file.close()
+file.close()'''
 pattern = "{:9s}{:14s}{:<3d}{:<7d}{:<10d}"
 
 for v in k:
@@ -334,17 +337,18 @@ for v in k:
 		totalS += sat
 		totalI += it
 		totalT += end
+		print results
 
-		file = open( "resultsGrasp" + nfile + ".txt", 'a' )
-		file.write( pattern.format( "G" + alg, nfile, v, i, sat ) + '\n' )
-		file.close()
+		'''file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+		file.write( pattern.format( "G", nfile, v, i, sat ) + '\n' )
+		file.close()'''
 
 	print v
 	print 'time', totalT, totalT/( solutions * 1.0 )
 	print 'sol', totalS, totalS/solutions
 	print 'it', totalI, totalI/solutions
 
-	file = open( "results/grasp/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	'''file = open( "results/grasp/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
 	file.write( contentTime )
 	file.close()
 	file = open( "results/grasp/it_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
@@ -354,4 +358,4 @@ for v in k:
 	file.write( contentResults )
 	file.close()	
 
-	ga.generateHistogram( name, v )
+	ga.generateHistogram( name, v )'''
