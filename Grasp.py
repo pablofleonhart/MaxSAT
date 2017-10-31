@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-class GreedyA:
+class Grasp:
 	m = 0	# variables
 	n = 0	# clauses
 	clauses = set()	# set of clauses
@@ -15,6 +15,7 @@ class GreedyA:
 	alpha = 0.2
 	k = 0
 	name = ''
+	prob = 0.5
 
 	def __init__( self, filename ):
 		file = open( filename, "r" )
@@ -58,8 +59,6 @@ class GreedyA:
 					self.dicClauses[literal] = set()
 				self.dicClauses[literal].add( tuple( clause ) )
 
-		#print self.dicClauses
-
 	def invertValue( self, value ):
 		if value == 0:
 			return 1
@@ -80,12 +79,10 @@ class GreedyA:
 					value = self.attempt[ab]
 
 			clauseValue += value
-			#print variable, value
 
 			if self.attempt[ab] >= 0:
 				hasValidValue = True
 
-		#print clause, self.attempt, clauseValue > 0
 		return clauseValue > 0 and hasValidValue
 
 	def satisfies( self, variable ):
@@ -134,27 +131,28 @@ class GreedyA:
 		return sat, unsat
 
 	def rankingPairs( self, pair ):
-		#print 'pair', pair
 		variable = pair[0]
 		value = pair[1]
 		clausesToEvaluate = self.dicClauses[variable]
 
 		unsBefore = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#print 'u', unsBefore
-		#print self.countClauses( clausesToEvaluate )
 		originalValue = self.attempt[variable]
 		self.attempt[variable] = value
 		unsAfter = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#print 'u2', unsAfter
-		#brokenClauses = self.countClauses( clausesToEvaluate )
-		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
-		#brokenClausesFlipped = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
 		self.attempt[variable] = originalValue
-		#broken = brokenClausesFlipped - brokenClauses
-		#print pair, broken, brokenClausesFlipped, brokenClauses
-		#print brokenClauses
 		self.improves.append( ( variable + ( self.n * value ), unsBefore - unsAfter ) )
+
+	def getLimiar( self ):
+		value = self.improves[0][1]
+		count = 0
+		for v in self.improves:
+			if v[1] != value:
+				break
+			else:
+				value = v[1]
+				count += 1
+
+		return count
 
 	def getVariable( self, remainingVars ):
 		self.improves = []
@@ -163,14 +161,12 @@ class GreedyA:
 				self.rankingPairs( ( i, j ) )
 		
 		self.improves = self.sort( self.improves )
-		#print self.improves
 
 		#select variable according with alpha parameter
-		#print self.n * self.alpha
 		limiar = int( round( self.n * self.alpha * self.k ) )
 		if limiar == 0:
-			limiar = 1
-		#print choice( self.improves[:limiar] )
+			limiar = self.getLimiar()
+
 		variable = choice( self.improves[:limiar] )[0]
 		value = 0
 
@@ -178,12 +174,9 @@ class GreedyA:
 			variable -= self.n
 			value = 1
 
-		#print variable, value
 		return variable, value
 
 	def countGains( self, variable ):
-		#print self.dicClauses[variable]
-
 		clausesToEvaluate = self.dicClauses[variable]
 		brokenClauses = self.countUnsatisfiedClauses( clausesToEvaluate )
 		self.attempt[variable] = self.invertValue( self.attempt[variable] )
@@ -191,25 +184,69 @@ class GreedyA:
 		self.attempt[variable] = self.invertValue( self.attempt[variable] )
 		gain = brokenClauses - brokenClausesFlipped
 
-		#print gain
 		return gain
 
 	def localSearch( self ):
-		gain = 1		
+		gain = 1
+		iterations = 0
 		while gain > 0:
 			gains = []
-			gain -= 1
 			for x in xrange( 1, self.n + 1 ):
 				gains.append( ( x, self.countGains( x ) ) )
 
 			gains = self.sort( gains )
 			gain = gains[0][1]
-			print self.attempt
-			self.attempt[gains[0][0]] = self.invertValue( self.attempt[gains[0][0]] )
-			print 'g', gains, gain
-			print self.attempt
 
-	def run( self, k ):
+			if gain > 0:
+				self.attempt[gains[0][0]] = self.invertValue( self.attempt[gains[0][0]] )
+			iterations += 1
+
+		return iterations
+
+	def walkSatLocalSearch( self ):
+		iterations = 0
+		self.satisfies( None )
+		print self.unsatisfiedClauses
+		start = time.time()
+
+		while self.unsatisfiedClauses and time.time() - start < 1:
+			bestVariable = None
+			b = len( self.clauses ) + 1
+
+			if self.unsatisfiedClauses:
+				unsatisfiedClause = sample( self.unsatisfiedClauses, 1 )[0]
+
+				for variable in unsatisfiedClause:
+					variable = abs( int( variable ) )
+					clausesToEvaluate = self.dicClauses[variable]
+					brokenClauses = self.countUnsatisfiedClauses( clausesToEvaluate )
+					self.attempt[variable] = self.invertValue( self.attempt[variable] )
+					brokenClausesFlipped = self.countUnsatisfiedClauses( clausesToEvaluate )
+					self.attempt[variable] = self.invertValue( self.attempt[variable] )
+					broken = brokenClausesFlipped - brokenClauses
+
+					if broken < b:
+						b = broken
+						bestVariable = variable
+
+					print broken, variable
+
+			print b, bestVariable
+
+			if b > 0 and random() < self.prob:
+				randomVar = randint( 1, self.n )
+				self.attempt[randomVar] = self.invertValue( self.attempt[randomVar] )
+				variable = randomVar
+			else:
+				self.attempt[bestVariable] = self.invertValue( self.attempt[bestVariable] )
+				variable = bestVariable
+
+			self.satisfies( variable )
+			print 'after', self.unsatisfiedClauses, self.attempt
+
+		return iterations
+
+	def run( self, k, alg ):
 		self.k = k
 		seed( time.time() )
 		self.unsatisfiedClauses = copy.deepcopy( self.clauses )
@@ -219,42 +256,18 @@ class GreedyA:
 			var.append( i )
 
 		while len( var ) > 0:
-			#print '################################################################'
-			'''for i in var:
-				for j in xrange( 0, 2 ):
-					self.rankingPairs( ( i, j ) )
-
-			print self.improves
-			self.improves = self.sort( self.improves )
-			variable = self.improves[0][0]
-			value = 0
-
-			if variable > self.n:
-				variable -= self.n
-				value = 1'''
-
 			pair = self.getVariable( var )
-			#print pair
 			x = pair[0]
 			v = pair[1]
-			#x = choice( var )
-			#v = randint( 0, 1 )
 			var.remove( x )
 			self.attempt[x] = v
-			#print 'v', self.countSatisfiedClauses( self.clauses )
-			#print 'remove', self.improves[0][0]
-			#self.rankingPairs( ( x, v ) )
-			#print x, v
-		#print var
-		#print self.attempt
-		res = self.countSatisfiedClauses( self.clauses )
-		'''file = open( "results/" + self.name + "_" + str( self.alpha * k ) + ".dat", "a" )
-		file.write( str( res ) + "\n" )
-		print 'v', res
-		file.close()'''
-		#print 'v', res
-		self.localSearch()
-		return res
+
+		if alg == 'gsat':
+			iterations = self.localSearch()
+		elif alg == 'walksat':
+			iterations = self.walkSatLocalSearch()
+
+		return self.countSatisfiedClauses( self.clauses ), iterations
 
 	def sort( self, array ):
 		less = []
@@ -276,8 +289,8 @@ class GreedyA:
 
 	def generateHistogram( self, name, value ):
 		file = open( "histogram.r", "w" )
-		file.write( "d<-read.table( 'results/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
-		file.write( "png( 'results/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
+		file.write( "d<-read.table( 'results/grasp/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
+		file.write( "png( 'results/grasp/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
 		file.write( "hist( d$V1, main = 'alpha = " + str( self.alpha * value ) + "', xlab = 'Satisfied clauses' )\n" )
 		file.write( "dev.off()\n" )
 		file.write( "q()" )
@@ -287,29 +300,58 @@ class GreedyA:
 
 param = sys.argv[1:]
 filename = param[0]
-k = [5]
+alg = param[1]
+k = [0, 1, 2]
 solutions = 1000
 
-ga = GreedyA( filename )
+ga = Grasp( filename )
 name = ( filename.split( '.' )[0] ).split( '/' )[-1]
+f = filename.split( "/" )[1]
+nfile = f.replace( ".cnf", '' )
+pattern = "{:9s}{:14s}{:3s}{:7s}{:10s}"
+file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+file.write( pattern.format( "alg", "instance", "k", "rep", 'v' ) + '\n' )
+file.close()
+pattern = "{:9s}{:14s}{:<3d}{:<7d}{:<10d}"
 
 for v in k:
-	total = 0
+	totalS = 0
+	totalI = 0
+	totalT = 0
 	contentResults = ''
-	start = time.time()
+	contentIt = ''
+	contentTime = ''
 
-	for i in xrange( solutions ):
-		result = ga.run( v )
-		#ga.localSearch()
-		contentResults += str( result ) + '\n'
-		total += result
+	for i in xrange( 1, solutions + 1 ):
+		start = time.time()
+		results = ga.run( v, alg )
+		end = time.time() - start		
+		sat = results[0]
+		it = results[1]
+		contentResults += str( sat ) + '\n'
+		contentIt += str( it ) + '\n'
+		contentTime += str( end ) + '\n'
+		totalS += sat
+		totalI += it
+		totalT += end
 
-	end = time.time() - start
+		file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+		file.write( pattern.format( "G" + alg, nfile, v, i, sat ) + '\n' )
+		file.close()
+
 	print v
-	print 'time', end, end/(solutions*1.0)
-	file = open( "results/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
-	file.write( contentResults )
+	print 'time', totalT, totalT/( solutions * 1.0 )
+	print 'sol', totalS, totalS/solutions
+	print 'it', totalI, totalI/solutions
+
+	file = open( "results/grasp/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file.write( contentTime )
 	file.close()
-	print 'avg', total, total/solutions
+	file = open( "results/grasp/it_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file.write( contentIt )
+	file.close()
+	file = open( "results/grasp/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file.write( contentResults )
+	file.close()	
 
 	ga.generateHistogram( name, v )

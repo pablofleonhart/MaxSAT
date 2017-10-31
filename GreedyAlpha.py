@@ -156,6 +156,19 @@ class GreedyA:
 		#print brokenClauses
 		self.improves.append( ( variable + ( self.n * value ), unsBefore - unsAfter ) )
 
+	def getLimiar( self ):
+		value = self.improves[0][1]
+		count = 0
+		for v in self.improves:
+			if v[1] != value:
+				break
+			else:
+				value = v[1]
+				count += 1
+
+		#print 'limiar', value, count
+		return count
+
 	def getVariable( self, remainingVars ):
 		self.improves = []
 		for i in remainingVars:
@@ -169,11 +182,12 @@ class GreedyA:
 		#print self.n * self.alpha
 		limiar = int( round( self.n * self.alpha * self.k ) )
 		if limiar == 0:
-			limiar = 1
+			limiar = self.getLimiar()
 		#print choice( self.improves[:limiar] )
 		variable = choice( self.improves[:limiar] )[0]
 		value = 0
 
+		#print variable, value
 		if variable > self.n:
 			variable -= self.n
 			value = 1
@@ -247,8 +261,8 @@ class GreedyA:
 
 	def generateHistogram( self, name, value ):
 		file = open( "histogram.r", "w" )
-		file.write( "d<-read.table( 'results/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
-		file.write( "png( 'results/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
+		file.write( "d<-read.table( 'results/greedy/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
+		file.write( "png( 'results/greedy/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
 		file.write( "hist( d$V1, main = 'alpha = " + str( self.alpha * value ) + "', xlab = 'Satisfied clauses' )\n" )
 		file.write( "dev.off()\n" )
 		file.write( "q()" )
@@ -258,28 +272,47 @@ class GreedyA:
 
 param = sys.argv[1:]
 filename = param[0]
-k = [1, 2, 3, 4, 5]
+k = [0, 1, 2, 3, 4, 5]
 solutions = 1000
 
 ga = GreedyA( filename )
 name = ( filename.split( '.' )[0] ).split( '/' )[-1]
+f = filename.split( "/" )[1]
+nfile = f.replace( ".cnf", '' )
+pattern = "{:9s}{:14s}{:3s}{:7s}{:10s}"
+file = open( "resultsGreedy" + nfile + ".txt", 'a' )
+file.write( pattern.format( "alg", "instance", "k", "rep", 'v' ) + '\n' )
+file.close()
+pattern = "{:9s}{:14s}{:<3d}{:<7d}{:<10d}"
 
 for v in k:
-	total = 0
+	totalS = 0
+	totalT = 0
 	contentResults = ''
-	start = time.time()
+	contentTime = ''
 
-	for i in xrange( solutions ):
+	for i in xrange( 1, solutions + 1 ):
+		start = time.time()
 		result = ga.run( v )
+		end = time.time() - start		
 		contentResults += str( result ) + '\n'
-		total += result
+		contentTime += str( end ) + '\n'
+		totalS += result
+		totalT += end
 
-	end = time.time() - start
+		file = open( "resultsGreedy" + nfile + ".txt", 'a' )
+		file.write( pattern.format( "C", nfile, v, i, result ) + '\n' )
+		file.close()
+
 	print v
-	print 'time', end, end/(solutions*1.0)
-	file = open( "results/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
-	file.write( contentResults )
+	print 'time', totalT, totalT/( solutions * 1.0 )
+	print 'sol', totalS, totalS/solutions
+
+	file = open( "results/greedy/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file.write( contentTime )
 	file.close()
-	print 'avg', total, total/solutions
+	file = open( "results/greedy/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file.write( contentResults )
+	file.close()	
 
 	ga.generateHistogram( name, v )
