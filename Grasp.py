@@ -119,17 +119,6 @@ class Grasp:
 
 		return count
 
-	def countClauses( self, clauses ):
-		sat = 0
-		unsat = 0
-		for clause in clauses:
-			if self.isSatisfiedClause( clause ):
-				sat += 1
-			else:
-				unsat += 1
-
-		return sat, unsat
-
 	def rankingPairs( self, pair ):
 		variable = pair[0]
 		value = pair[1]
@@ -161,8 +150,6 @@ class Grasp:
 				self.rankingPairs( ( i, j ) )
 		
 		self.improves = self.sort( self.improves )
-
-		#select variable according with alpha parameter
 		limiar = int( round( self.n * self.alpha * self.k ) )
 		if limiar == 0:
 			limiar = self.getLimiar()
@@ -206,7 +193,6 @@ class Grasp:
 	def walkSatLocalSearch( self ):
 		iterations = 0
 		self.satisfies( None )
-		#print self.unsatisfiedClauses
 		start = time.time()
 
 		while self.unsatisfiedClauses and time.time() - start < 10:
@@ -229,10 +215,6 @@ class Grasp:
 						b = broken
 						bestVariable = variable
 
-					#print broken, variable
-
-			#print b, bestVariable
-
 			if b > 0 and random() < self.prob:
 				randomVar = randint( 1, self.n )
 				self.attempt[randomVar] = self.invertValue( self.attempt[randomVar] )
@@ -242,7 +224,6 @@ class Grasp:
 				variable = bestVariable
 
 			self.satisfies( variable )
-			#print 'after', self.unsatisfiedClauses, self.attempt
 			iterations += 1
 
 		return iterations
@@ -266,7 +247,7 @@ class Grasp:
 			iterations += 1
 
 		if alg == 'gsat':
-			iterations = self.localSearch()
+			iterations += self.localSearch()
 		elif alg == 'walksat':
 			iterations += self.walkSatLocalSearch()
 
@@ -292,8 +273,8 @@ class Grasp:
 
 	def generateHistogram( self, name, value ):
 		file = open( "histogram.r", "w" )
-		file.write( "d<-read.table( 'results/grasp/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
-		file.write( "png( 'results/grasp/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
+		file.write( "d<-read.table( 'results/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
+		file.write( "png( 'results/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
 		file.write( "hist( d$V1, main = 'alpha = " + str( self.alpha * value ) + "', xlab = 'Satisfied clauses' )\n" )
 		file.write( "dev.off()\n" )
 		file.write( "q()" )
@@ -304,17 +285,17 @@ class Grasp:
 param = sys.argv[1:]
 filename = param[0]
 alg = param[1]
-k = [0, 1, 2, 3, 4, 5]
-solutions = 10
+k = [5]
+solutions = 1000
 
 ga = Grasp( filename )
 name = ( filename.split( '.' )[0] ).split( '/' )[-1]
 f = filename.split( "/" )[1]
 nfile = f.replace( ".cnf", '' )
 pattern = "{:9s}{:14s}{:3s}{:7s}{:10s}"
-'''file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+file = open( "results" + alg + " " + nfile + ".txt", 'a' )
 file.write( pattern.format( "alg", "instance", "k", "rep", 'v' ) + '\n' )
-file.close()'''
+file.close()
 pattern = "{:9s}{:14s}{:<3d}{:<7d}{:<10d}"
 
 for v in k:
@@ -337,25 +318,40 @@ for v in k:
 		totalS += sat
 		totalI += it
 		totalT += end
-		print results
+		#print results
 
-		'''file = open( "resultsGrasp" + nfile + ".txt", 'a' )
+		file = open( "results" + alg + "_" + str( v ) + nfile + ".txt", 'a' )
 		file.write( pattern.format( "G", nfile, v, i, sat ) + '\n' )
-		file.close()'''
+		file.close()
+
+		if i%100 == 0:
+			file = open( "results/" + alg + "/time_" + name + "_" + str( 0.2 * v ) + ".dat", "a" )
+			file.write( contentTime )
+			file.close()
+			file = open( "results/" + alg + "/it_" + name + "_" + str( 0.2 * v ) + ".dat", "a" )
+			file.write( contentIt )
+			file.close()
+			file = open( "results/" + alg + "/" + name + "_" + str( 0.2 * v ) + ".dat", "a" )
+			file.write( contentResults )
+			file.close()
+			contentResults = ''
+			contentIt = ''
+			contentTime = ''
+			print 'writing...'
 
 	print v
 	print 'time', totalT, totalT/( solutions * 1.0 )
 	print 'sol', totalS, totalS/solutions
 	print 'it', totalI, totalI/solutions
 
-	'''file = open( "results/grasp/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	'''file = open( "results/" + alg + "/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
 	file.write( contentTime )
 	file.close()
-	file = open( "results/grasp/it_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file = open( "results/" + alg + "/it_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
 	file.write( contentIt )
 	file.close()
-	file = open( "results/grasp/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
+	file = open( "results/" + alg + "/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
 	file.write( contentResults )
-	file.close()	
+	file.close()'''
 
-	ga.generateHistogram( name, v )'''
+	ga.generateHistogram( alg + "/" + name, v )

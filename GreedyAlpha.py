@@ -10,7 +10,6 @@ class GreedyA:
 	clauses = set()	# set of clauses
 	dicClauses = {}
 	attempt = []
-	unsatisfiedClauses = set()
 	improves = []
 	alpha = 0.2
 	k = 0
@@ -58,8 +57,6 @@ class GreedyA:
 					self.dicClauses[literal] = set()
 				self.dicClauses[literal].add( tuple( clause ) )
 
-		#print self.dicClauses
-
 	def invertValue( self, value ):
 		if value == 0:
 			return 1
@@ -80,31 +77,11 @@ class GreedyA:
 					value = self.attempt[ab]
 
 			clauseValue += value
-			#print variable, value
 
 			if self.attempt[ab] >= 0:
 				hasValidValue = True
 
-		#print clause, self.attempt, clauseValue > 0
 		return clauseValue > 0 and hasValidValue
-
-	def satisfies( self, variable ):
-		if variable:
-			if variable in self.dicClauses:
-				for clause in self.dicClauses[variable]:
-					if self.isSatisfiedClause( clause ):
-						if clause in self.unsatisfiedClauses:
-							self.unsatisfiedClauses.remove( clause )
-					else:
-						if clause not in self.unsatisfiedClauses:
-							self.unsatisfiedClauses.add( clause )
-		else:
-			self.unsatisfiedClauses.clear()
-			for clause in self.clauses:
-				if not self.isSatisfiedClause( clause ):
-					self.unsatisfiedClauses.add( clause )
-
-		return len( self.unsatisfiedClauses ) == 0
 
 	def countSatisfiedClauses( self, clauses ):
 		sat = 0
@@ -122,38 +99,16 @@ class GreedyA:
 
 		return count
 
-	def countClauses( self, clauses ):
-		sat = 0
-		unsat = 0
-		for clause in clauses:
-			if self.isSatisfiedClause( clause ):
-				sat += 1
-			else:
-				unsat += 1
-
-		return sat, unsat
-
 	def rankingPairs( self, pair ):
-		#print 'pair', pair
 		variable = pair[0]
 		value = pair[1]
 		clausesToEvaluate = self.dicClauses[variable]
 
 		unsBefore = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#print 'u', unsBefore
-		#print self.countClauses( clausesToEvaluate )
 		originalValue = self.attempt[variable]
 		self.attempt[variable] = value
 		unsAfter = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#print 'u2', unsAfter
-		#brokenClauses = self.countClauses( clausesToEvaluate )
-		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
-		#brokenClausesFlipped = self.countUnsatisfiedClauses( clausesToEvaluate )
-		#self.attempt[variable] = self.invertValue( self.attempt[variable] )
 		self.attempt[variable] = originalValue
-		#broken = brokenClausesFlipped - brokenClauses
-		#print pair, broken, brokenClausesFlipped, brokenClauses
-		#print brokenClauses
 		self.improves.append( ( variable + ( self.n * value ), unsBefore - unsAfter ) )
 
 	def getLimiar( self ):
@@ -166,7 +121,6 @@ class GreedyA:
 				value = v[1]
 				count += 1
 
-		#print 'limiar', value, count
 		return count
 
 	def getVariable( self, remainingVars ):
@@ -176,70 +130,35 @@ class GreedyA:
 				self.rankingPairs( ( i, j ) )
 		
 		self.improves = self.sort( self.improves )
-		#print self.improves
-
-		#select variable according with alpha parameter
-		#print self.n * self.alpha
 		limiar = int( round( self.n * self.alpha * self.k ) )
 		if limiar == 0:
 			limiar = self.getLimiar()
-		#print choice( self.improves[:limiar] )
+
 		variable = choice( self.improves[:limiar] )[0]
 		value = 0
 
-		#print variable, value
 		if variable > self.n:
 			variable -= self.n
 			value = 1
 
-		#print variable, value
 		return variable, value
 
 	def run( self, k ):
 		self.k = k
 		seed( time.time() )
-		self.unsatisfiedClauses = copy.deepcopy( self.clauses )
 		self.attempt = [-1 for x in xrange( self.n + 1 )]
 		var = []
 		for i in xrange( 1, self.n + 1 ):
 			var.append( i )
 
 		while len( var ) > 0:
-			#print '################################################################'
-			'''for i in var:
-				for j in xrange( 0, 2 ):
-					self.rankingPairs( ( i, j ) )
-
-			print self.improves
-			self.improves = self.sort( self.improves )
-			variable = self.improves[0][0]
-			value = 0
-
-			if variable > self.n:
-				variable -= self.n
-				value = 1'''
-
 			pair = self.getVariable( var )
-			#print pair
 			x = pair[0]
 			v = pair[1]
-			#x = choice( var )
-			#v = randint( 0, 1 )
 			var.remove( x )
 			self.attempt[x] = v
-			#print 'v', self.countSatisfiedClauses( self.clauses )
-			#print 'remove', self.improves[0][0]
-			#self.rankingPairs( ( x, v ) )
-			#print x, v
-		#print var
-		#print self.attempt
-		res = self.countSatisfiedClauses( self.clauses )
-		'''file = open( "results/" + self.name + "_" + str( self.alpha * k ) + ".dat", "a" )
-		file.write( str( res ) + "\n" )
-		print 'v', res
-		file.close()'''
-		#print 'v', res
-		return res
+
+		return self.countSatisfiedClauses( self.clauses )
 
 	def sort( self, array ):
 		less = []
