@@ -173,7 +173,7 @@ class Grasp:
 
 		return gain
 
-	def localSearch( self ):
+	def gSatLocalSearch( self ):
 		gain = 1
 		iterations = 0
 		while gain > 0:
@@ -195,7 +195,7 @@ class Grasp:
 		self.satisfies( None )
 		start = time.time()
 
-		while self.unsatisfiedClauses and time.time() - start < 10:
+		while self.unsatisfiedClauses and time.time() - start < 1:
 			bestVariable = None
 			b = len( self.clauses ) + 1
 
@@ -247,7 +247,7 @@ class Grasp:
 			iterations += 1
 
 		if alg == 'gsat':
-			iterations += self.localSearch()
+			iterations += self.gSatLocalSearch()
 		elif alg == 'walksat':
 			iterations += self.walkSatLocalSearch()
 
@@ -274,7 +274,7 @@ class Grasp:
 	def generateHistogram( self, name, value ):
 		file = open( "histogram.r", "w" )
 		file.write( "d<-read.table( 'results/" + name + "_" + str( self.alpha * value ) + ".dat' )\n" )
-		file.write( "png( 'results/" + name + "_" + str( self.alpha * value ) + ".png' )\n" )
+		file.write( "png( 'results/" + name + "_" + str( self.alpha * value ) + ".png', width = 240, height = 200, units = 'px' )\n" )
 		file.write( "hist( d$V1, main = 'alpha = " + str( self.alpha * value ) + "', xlab = 'Satisfied clauses' )\n" )
 		file.write( "dev.off()\n" )
 		file.write( "q()" )
@@ -282,10 +282,34 @@ class Grasp:
 
 		os.system( "Rscript histogram.r" )
 
+	def mean( self, data ):
+	    n = len( data )
+	    if n < 1:
+	        return 0.00
+
+	    return sum( data ) / n
+
+	def _ss( self, data ):
+	    c = self.mean( data )
+	    ss = sum( ( x - c ) ** 2 for x in data )
+	    return ss
+
+	def pstdev( self, data ):
+	    n = len( data )
+	    if n < 2:
+	        return 0.00
+	    ss = self._ss( data )
+	    pvar = ss / n
+	    return pvar ** 0.5
+
+if ( len( sys.argv ) != 2 ):
+	print "Use:", sys.argv[0], "<sat_problem.cnf> <Algorithm(gsat, walksat)>"
+	sys.exit( 1 )
+
 param = sys.argv[1:]
 filename = param[0]
 alg = param[1]
-k = [5]
+k = [0, 1, 2, 3, 4, 5]
 solutions = 1000
 
 ga = Grasp( filename )
@@ -305,6 +329,9 @@ for v in k:
 	contentResults = ''
 	contentIt = ''
 	contentTime = ''
+	its = []
+	tms = []
+	sts = []
 
 	for i in xrange( 1, solutions + 1 ):
 		start = time.time()
@@ -318,7 +345,9 @@ for v in k:
 		totalS += sat
 		totalI += it
 		totalT += end
-		#print results
+		its.append( it )
+		tms.append( end )
+		sts.append( sat )
 
 		file = open( "results" + alg + "_" + str( v ) + nfile + ".txt", 'a' )
 		file.write( pattern.format( "G", nfile, v, i, sat ) + '\n' )
@@ -337,21 +366,14 @@ for v in k:
 			contentResults = ''
 			contentIt = ''
 			contentTime = ''
-			print 'writing...'
 
 	print v
 	print 'time', totalT, totalT/( solutions * 1.0 )
 	print 'sol', totalS, totalS/solutions
 	print 'it', totalI, totalI/solutions
 
-	'''file = open( "results/" + alg + "/time_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
-	file.write( contentTime )
-	file.close()
-	file = open( "results/" + alg + "/it_" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
-	file.write( contentIt )
-	file.close()
-	file = open( "results/" + alg + "/" + name + "_" + str( 0.2 * v ) + ".dat", "w" )
-	file.write( contentResults )
-	file.close()'''
+	print str( '{0:,.2f}'.format( ga.mean( tms ) ) ), str( '{0:,.2f}'.format( ga.pstdev( tms ) ) )
+	print str( '{0:,.2f}'.format( ga.mean( sts ) ) ), str( '{0:,.2f}'.format( ga.pstdev( sts ) ) )
+	print str( '{0:,.2f}'.format( ga.mean( its ) ) ), str( '{0:,.2f}'.format( ga.pstdev( its ) ) )
 
 	ga.generateHistogram( alg + "/" + name, v )

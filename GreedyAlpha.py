@@ -189,6 +189,10 @@ class GreedyA:
 
 		os.system( "Rscript histogram.r" )
 
+if ( len( sys.argv ) <= 1 ):
+	print "Use:", sys.argv[0], "<sat_problem.cnf>"
+	sys.exit( 1 )
+
 param = sys.argv[1:]
 filename = param[0]
 k = [0, 1, 2, 3, 4, 5]

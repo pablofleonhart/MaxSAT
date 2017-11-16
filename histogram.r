@@ -1,5 +1,5 @@
-d<-read.table( 'results/grasp/par8-5-c_1.0.dat' )
-png( 'results/grasp/par8-5-c_1.0.png', width = 240, height = 200, units = "px" )
-hist( d$V1, main = 'alpha = 1.0', xlab = 'Satisfied clauses' )
+d<-read.table( 'results/walksat/flat100-1_0.0.dat' )
+png( 'results/walksat/flat100-1_0.0.png', width = 240, height = 200, units = 'px' )
+hist( d$V1, main = 'alpha = 0.0', xlab = 'Satisfied clauses' )
 dev.off()
 q()
